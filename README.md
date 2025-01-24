@@ -17,3 +17,9 @@ new posit <br>
 
 
 <br>
+
+https://github.com/eahoff01/QB2025_Hoffman 
+
+<br>
+
+test w/ git direct add <br>
