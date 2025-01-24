@@ -10,3 +10,10 @@ We are expected to attend every class meeting. <br>
 Late assignments will be accepted, but penalties will apply. <br> 
 Worksheets will be submitted on github. <br>
 
+<br>
+test <br>
+
+new posit <br>
+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 
+
+<br>
