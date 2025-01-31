@@ -10,3 +10,23 @@ We are expected to attend every class meeting. <br>
 Late assignments will be accepted, but penalties will apply. <br> 
 Worksheets will be submitted on github. <br>
 
+<br>
+test <br>
+
+new posit <br>
+
+
+<br>
+
+https://github.com/eahoff01/QB2025_Hoffman 
+
+<br>
+
+test w/ git direct add <br>
+
+<br>
+hehe <br>
+
+
+<br>
+token stil lworil???

@@ -1,6 +1,6 @@
 ---
 title: '3\. Worksheet: Basic R'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Elaine Hoffman; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -49,7 +49,9 @@ In the R code chunk below, please provide the code to:
 3) set your working directory to your '3.RStudio' folder. 
 
 ```{r}
-
+rm(list =ls())
+getwd()
+setwd("/cloud/project/QB2025_Hoffman/Week1-RStudio")
 
 
 ```
@@ -65,8 +67,16 @@ Feel free to reference the **1. Introduction to version control and computing to
 4) the log (base e) of your favorite number.
 
 ```{r}
+l <- 5
+v <- l^3
 
+r <- 2
+a <- pi * r^2
 
+t <- 45
+o <- sin(t)*sqrt(2)
+
+fn <- log(99)
 
 
 ```
@@ -83,6 +93,11 @@ In the R-code chunk below, do the following:
 3) Add `x` and `w` and divide by 15.
 
 ```{r}
+x <- c(16, 21, 3, 10, 22)
+
+w <- x*14
+
+y <- (x+w)/15
 
 
 
@@ -95,6 +110,9 @@ Now, do the following:
 
 ```{r}
 
+k <- c(12, 50, 31, 7, 68)
+kx <- k*x
+d <- c(224, 42, 308, 12, 31, 7, 68)
 
 
 ```
@@ -106,15 +124,17 @@ In the R-code chunk below, calculate the **summary statistics** (i.e., maximum, 
 ```{r}
 v <- c(16.4, 16.0, 10.1, 16.8, 20.5, NA, 20.2, 13.1, 24.8, 20.2, 25.0, 20.5, 30.5, 31.4, 27.1)
 
-
-
-
-
-
-
-
-
-
+max(na.omit(v))
+min(na.omit(v))
+sum(na.omit(v))
+mean(na.omit(v))
+median(na.omit(v))
+var(na.omit(v))
+sd(na.omit(v))
+sem <- function(v){
+  sd(na.omit(v))/sqrt(length(na.omit(v)))
+}
+sem(v)
 
 
 
@@ -128,9 +148,10 @@ Both columns should consist of random numbers.
 Make the mean of the first column equal to 8 with a standard deviation of 2 and the mean of the second column equal to 25 with a standard deviation of 10.
 
 ```{r}
+v1 <- c(rnorm(5, mean = 8, sd = 2))
+v2 <- c(rnorm(5, mean = 25, sd = 10 ))
 
-
-
+m1 <- matrix(cbind(v1, v2), nrow = 5, ncol = 2, byrow = FALSE)
 
 
 ```
@@ -139,7 +160,7 @@ Make the mean of the first column equal to 8 with a standard deviation of 2 and 
 What do the arguments in this function specify? 
 Remember to use `help()` or type `?rnorm`.
 
-> Answer 1:
+> Answer 1: The rnorm function generates a set of random numbers with a normal distribution. The arguments in the rnorm function generally include n, mean, and sd. n tells the function how many numbers to generate. mean tells that function where to center the distribution of the generated numbers. sd tells the function how much "spread" the generated numbers should have from the mean or how "wide" the distribution should be. 
 
 
 In the R code chunk below, do the following: 
@@ -148,15 +169,16 @@ In the R code chunk below, do the following:
 3) Determine the dimensions of the transposed matrix.
 
 ```{r}
-
-
+m2 <- as.matrix(read.table("data/matrix.txt", sep = "\t", header = FALSE))
+tm2 <- t(m2)
+dim(tm2)
 
 ```
 
 
 ***Question 2***: What are the dimensions of the matrix you just transposed?
 
-> Answer 2:
+> Answer 2: The transposed matrix has 5 rows and 10n columns. 
 
 
 ###Indexing a Matrix
@@ -167,6 +189,8 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+im2 <- m2[, c(1:2, 4:5)]
+Im2 <- m2[1:9, ]
 
 ```
 
@@ -178,7 +202,8 @@ In the R code chunk below, do the following:
 2) Display the structure of this data set.
 
 ```{r}
-
+meso <- read.table("data/zoop_nuts.txt", sep = "\t", header = TRUE)
+str(meso)
 
 ```
 
@@ -190,14 +215,16 @@ In the R-code chunk below, do the following:
 3) Conduct a simple **Pearson's correlation** analysis.
 
 ```{r}
-
+meso.num <- meso[ ,3:8]
+pairs(meso.num)
+cor1 <- cor(meso.num)
 
 ```
 
 
 ***Question 3***: Describe some of the general features based on the visualization and correlation analysis above?
 
-> Answer 3:
+> Answer 3: Based on the plots and the correlation analysis, there does appear to be some correlation between many of the variables. In many of the plots the data points form a loose linear relationship and the correlation analysis yielded values that supported this finding. 
 
 
 In the R code chunk below, do the following:
@@ -206,8 +233,14 @@ In the R code chunk below, do the following:
 3) Use the print command from the handout to see the results of each correlation analysis.
 
 ```{r}
+require("psych")
+cor2 <- corr.test(meso.num, method = "pearson", adjust = "BH")
+cor3 <- corr.test(meso.num, method = "kendall", adjust = "BH")
+print(cor2)
+print(cor3)
 
-
+require("corrplot")
+corrplot(cor1, method = "ellipse")
 
 ```
 
@@ -218,7 +251,7 @@ When should one use non-parametric methods instead of parametric methods?
 With the Pearson's method, is there evidence for false discovery rate due to multiple comparisons? 
 Why is false discovery rate important?
 
-> Answer 4: 
+> Answer 4: The numbers produced by the correlation test were different depending on whether the test was parametric or non-parametric, but both tests still revealed some correlations. Non-parametric methods should be used in situations where the data does not meet the assumptions of a parametric model. For example, if the data is not normally distributed or if it is ordinal or nominal in nature. There is evidence for a false discovery rate when conducting a correlation using the pearson's method because anytime you conduct more than one comparison you increase your likelihood of committing a type 1 error by chance. This rate is important because we must be aware that some significant correlations could be produced by chance and not actually exist as a true relationship between variables. This is corrected for in the tests above using the adjust = "BH" which includes Benjamini & Hochberg-corrected p-values. 
 
 ### Linear Regression
 
@@ -229,21 +262,29 @@ In the R code chunk below, do the following:
 
 ```{r}
 
-
-
-
-
-
+fitreg <- lm(ZP ~ TN, data = meso )
+summary(fitreg)
+plot(meso$TN, meso$ZP, ylim = c(0, 10), xlim = c(500, 5000), 
+     xlab = expression(paste("Total Nitrogen (", mu,"g/L)")), 
+     ylab = "Zooplankton Biomass (mg/L)", las = 1)
+text(meso$TN, meso$ZP, meso$NUTS, pos=3, cex = 0.8)
+newTN <- seq(min(meso$TN), max(meso$TN), 10)
+regline <- predict(fitreg, newdata = data.frame(TN = newTN))
+lines(newTN, regline)
+conf95 <- predict(fitreg, newdata = data.frame(TN = newTN),
+                  interval = c("confidence"), level = 0.95, type = "response")
+matlines(newTN, conf95[, c("lwr", "upr")], type="l", lty = 2, lwd = 1, col = "black")
 
 ```
 
 ***Question 5***: Interpret the results from the regression model
 
-> Answer 5:
+> Answer 5: There does appear to be a correlation between total nitrogen and zooplankton biomass, however, it is not the strongest correlation considering a fair portion of the data points fell outside of the confidence interval for the regression line on the graph. When looking at the residuals, this data appears to meet the assumptions of a linear regression. 
 
 
 ```{r}
-
+par(mfrow = c(2, 2), mar = c(5.1, 4.1, 4.1, 2.1))
+plot(fitreg)
 ```
 
 ### Analysis of Variance (ANOVA)
@@ -256,12 +297,30 @@ Using the R code chunk below, do the following:
 
 
 ```{r}
+NUTS <- factor(meso$NUTS, levels = c('L', 'M', 'H'))
+zp.means <- tapply(meso$ZP, NUTS, mean)
+sem <- function(x){
+  sd(na.omit(x))/sqrt(length(na.omit(x)))
+}
+zp.sem <- tapply(meso$ZP, NUTS, sem)
 
+bp <- barplot(zp.means, ylim = c(0, round(max(meso$ZP), digits = 0)), 
+              pch = 15, cex = 1.25, las = 1, cex.lab = 1.4, cex.axis = 1.25,
+              xlab = "nutrient supply",
+              ylab = "zooplankton biomass (mg/L)",
+              names.arg = c("low", "medium", "high"))
+arrows(x0 = bp, y0 = zp.means, y1 = zp.means - zp.sem, angle = 90, 
+      length = 0.1, lwd = 1)
+arrows(x0 = bp, y0 = zp.means, y1 = zp.means + zp.sem, angle = 90, 
+       length = 0.1, lwd = 1)
 
+fitanova <- aov(ZP ~ NUTS, data = meso) 
+summary(fitanova)
 
+TukeyHSD(fitanova)
 
-
-
+par(mfrow = c(2, 2), mar = c(5.1, 4.1, 4.1, 2.1))
+plot(fitanova)
 
 ```
 
@@ -293,11 +352,22 @@ The remaining columns of data refer to the biomass (µg/L) of different zooplank
 Describe what you learned below in the "Answer" section and include appropriate code in the R chunk.
 
 ```{r}
+zoop <- read.table("data/zoops.txt", sep = "\t", header = TRUE)
+str(zoop)
 
+zoop.num <- cbind(zoop[ ,3:11], meso[ ,8])
+colnames(zoop.num)[10] <- "ZP"
+pairs(zoop.num)
 
+corzoop <- corr.test(zoop.num, method = "pearson", adjust = "BH")
+print(zoop.num)
+
+require("corrplot")
+corrplot(cor(zoop.num), method = "ellipse")
 
 
 ```
+> Answer #6: According to the correlation test I ran on the data, it appears that there is a correlation between two of the zooplankton taxa and the total biomass (ZP). Those two taxa are SIMO and CHYD. The correlation can be seen in the corrplot by looking at the blue ovals in the ZP column/row. 
 
 ## SUBMITTING YOUR WORKSHEET
 Use Knitr to create a PDF of your completed **3.RStudio_Worksheet.Rmd** document, push the repo to GitHub, and create a pull request.
