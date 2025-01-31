@@ -622,29 +622,20 @@ How many species are there in the entire site-by-species matrix?
 Any other interesting observations based on what you learned this week?
 
 ```{r}
-#This was having trouble knitting- I was switching between the console and r-chunk due to issues setting the working directory. I transformed
+
 library(dplyr)
 library(tidyr)
 library(tibble)
 
-tree <-read.csv("TREE.csv")
+tree <-read.csv("https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/d5b1465aaa135077652b5f5f69fd568d4d47b496/TREE.csv")
 print(tree)
 
-tree.species.df <-data.frame(Plot_ID = c(tree$PLOT),
-                             Species_ID =c(tree$SPCD))
-print(tree.species.df)
-
-print(tree.species.df$Plot_ID)
-
-#Site by Species df 
-tree.ss.df <- as.data.frame.matrix(table(tree.species.df$Plot_ID, tree.species.df$Species_ID))
-tree.ss.df <- rownames_to_column(tree.ss.df, var = "Plot_ID")
-print(tree.ss.df)
-
-tree.species.only.df <- tree.ss.df[, 2:ncol(tree.ss.df)]
+site_species_df <- tree %>%
+  count(PLOT, SPCD) %>%  # Count species occurrences per plot
+  pivot_wider(names_from = SPCD, values_from = n, values_fill = list(n = 0))  # Convert to matrix
 
 #necessary functions 
-#observed richenss
+#observed richness
 S.obs <- function(x = ""){
   rowSums(x > 0) *1 
 } 
@@ -727,26 +718,25 @@ simpE <- function (x = ""){
 }
 
 #Overview
-length(tree$SPCD) #43528 species in the Tree dataset-species delimited by species ID ranging from 110-999 translation of the codes can be found in the repository
-range(tree.species.df$Species_ID)
-length(tree$PLOT) #43528 plots in the Tree dataset ranging from 1-999 translation of the codes can be found in the repository
-range(tree.species.df$Plot_ID)
-str(tree.species.df)
-#This dataset is so large much of the diversity metrics will only printed a limited number of outputs. I will have the code for all the sites commented out with comparison at only one site (Site 1)
-tree.site1.df <- as.data.frame(tree.ss.df[1,])
-tree.site1.df$Plot_ID <- NULL
-print(tree.site1.df)
+length(unique(tree$SPCD)) #109 species in the Tree dataset
+length(unique(tree$PLOT)) #6586 plots in the Tree dataset
+
+plot1 <- site_species_df[1, 2:110]
+
 
 #Observed Richness
-S.obs(tree.site1.df) #Observed richenss = 2
-obsRich.all <- S.obs(tree.ss.df) #Observed richness ranges from [2,12] for the enture dataset
+S.obs(plot1) #Observed richness = 2
+obsRich.all <- S.obs(site_species_df) #Observed richness ranges from [2,12] for the entire dataset
+range(obsRich.all)
 
 #Good's Coverage
-GC(tree.site1.df) #.889 GC
-GC.tree.all <-GC(tree.species.df) #mean = .6391
+GC(plot1) #.889 GC
+GC.tree.all <-GC(site_species_df) #mean = .6391--Anna
+mean(GC.tree.all) #Updated mean=0.998? --Elaine
 
-
-chao2.tree.all <- chao1(tree.species.df) #range [17048.72, 17058.72] mean 17051.15
+chao2.tree.all <- chao1(site_species_df) #range [17048.85, 17058.85 mean 17051.29
+range(chao2.tree.all)
+mean(chao2.tree.all)
 print(chao2.tree.all)
 
 
