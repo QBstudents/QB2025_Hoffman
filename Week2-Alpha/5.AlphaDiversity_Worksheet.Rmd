@@ -634,6 +634,7 @@ site_species_df <- tree %>%
   count(PLOT, SPCD) %>%  # Count species occurrences per plot
   pivot_wider(names_from = SPCD, values_from = n, values_fill = list(n = 0))  # Convert to matrix
 
+
 #necessary functions 
 #observed richness
 S.obs <- function(x = ""){
