@@ -430,6 +430,8 @@ tree.species.only.df <- tree.ss.df[, -1]
 
 tree.species.only.df.L <-tree.species.df
 
+
+
 #Bray-Curtis 
 
 tree.db <-vegdist(tree.species.only.df, method = "bray")
