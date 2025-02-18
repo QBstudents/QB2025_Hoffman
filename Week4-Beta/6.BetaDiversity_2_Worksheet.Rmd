@@ -1,6 +1,6 @@
 ---
 title: '6\. Worksheet: Among Site (Beta) Diversity -- Part 2'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Elaine Hoffman; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -42,8 +42,11 @@ In the R code chunk below, provide the code to:
 4. load the `vegan` R package (be sure to install if needed).  
 
 ```{r}
-
-
+rm(list = ls())
+setwd("/cloud/project/Week4-Beta")
+library(vegan)
+library(ade4)
+library(indicspecies)
 
 
 ```
@@ -54,7 +57,7 @@ In the R code chunk below, load the `doubs` dataset from the `ade4` package
 
 ```{r}
 # note, pleae do not print the dataset when submitting
-
+data(doubs)
 
 
 ```
@@ -69,11 +72,22 @@ In the code chunk below, test the hypothesis that fish community composition var
 2. use the multivariate analyses for categorical predictors to describe how fish community structure relates to habitat quality.
 
 ```{r}
+fish <- doubs$fish[-8, ]
 
+#Create factors vector
+quality <- c(rep("HQ", 13), rep("MQ", 5), rep("LQ", 6), rep("MQ", 5))
 
+#Run PERMANOVA with adonis2 function
+adonis2(fish ~ quality, method = "bray", permutations = 999)
 
+indval <- multipatt(fish, cluster = quality, func = "IndVal.g", control = how(nperm = 999))
+summary(indval)
 
+fish.rel <- decostand(fish, method = "total")
+phi <- multipatt(fish.rel, cluster = quality, func = "r.g",
+                 control = how(nperm = 999))
 
+summary(phi)
 
 
 
@@ -83,7 +97,7 @@ In the code chunk below, test the hypothesis that fish community composition var
 ***Question 1***: Based on the PERMANOVA, IndVal, and phi coefficient analyses, what did you learn about the relationship between habitat quality and the fish species composition?
 Are the different analyses consistent with one another and do they agree with the visualizations (heat maps, cluster dendograms, ordinations) that you created?
 
-> ***Answer 1***: 
+> ***Answer 1***: These analyses revealed that there is a significant relationship between habitat quality andd fish species composition. The PERMANOVA found that water quality predicts roughly 46% of the variation in fish composition along the water quality gradient in the river between the three groups (L, M, H). The IndVal and phi coefficient supported this conclusion by identifying species that grouped within each category. The results were very similar, but the phi coefficient provided a greater resolution to the groupings by placing more species in single categories rather than spanning 2 as seen for some species in the IndVal analysis. This aligns with the visualizations produced last week that indicated that water quality was likely significantly related to fish species distributions. 
 
 
 ### B.  Multivariate Procedures for Continuous Designs
@@ -95,17 +109,19 @@ In the R code chunk below, do the following:
 2. use a Mantel test to test the hypothesis that fish assemblages are correlated with stream environmental variables.
 
 ```{r}
+#Define matrices
+fish.dist <- vegdist(doubs$fish[-8, ], method = "bray")
+env.dist <- vegdist(scale(doubs$env[-8, ]), method = "euclid")
 
-
-
-
+#Mantel test
+mantel(fish.dist, env.dist)
 
 ```
 
 ***Question 2***: What do the results from our Mantel test suggest about fish diversity and stream environmental conditions? 
 How does this relate to your hypothesis about stream quality influencing fish communities?
 
-> ***Answer 2***:  
+> ***Answer 2***:  The results of the Mantel test indicate that there is a moderate to strong relationship (r = 0.604) between fish diversity and stream environmental conditions and was strongly statistically signficant (0.01). This supports my hypothesis that stream quality is influencing fish communities.  
 
 ### ii.  Constrained Ordination
 In the R code chunk below, do the following:  
@@ -119,21 +135,80 @@ In the R code chunk below, do the following:
 7. add vectors that demonstrate the influence of each environmental factor the constrained ordination.   
 ```{r}
 
+#calculate bray-curtis
+fish.db <- vegdist(fish, method = "bray")
+
+#Define environmental matrix
+env.chem <- as.matrix(doubs$env[-8, 5:11])
+
+#Perform dbRDA
+doubs.dbrda <- dbrda(fish.db ~ ., as.data.frame(env.chem))
+ordiplot(doubs.dbrda)
+
+#First we will model only the intercept
+doubs.dbrda.mod0 <- dbrda(fish.db ~ 1, as.data.frame(env.chem))
+
+#Note there are no vectors here (we didn't constrain anything)
+#Therefore, the axes suggest this is a simple MDS (i.e. PCoA)
+ordiplot(doubs.dbrda.mod0)
+
+#Next, we will model the full model, with all explanatory variables
+doubs.dbrda.mod1 <- dbrda(fish.db ~ ., as.data.frame(env.chem))
+
+#Now we will step through all combinations of explanatory variables in our model
+#The function returns the model with the lowest AIC value
+doubs.dbrda <- ordiR2step(doubs.dbrda.mod0, doubs.dbrda.mod1, perm.max = 200)
+
+#Lets look at the model that was selected
+doubs.dbrda$call
+doubs.dbrda$anova
+ordiplot(doubs.dbrda)
+
+#Permutation tests to evaluate significance 
+permutest(doubs.dbrda, permutations = 999)
+envfit(doubs.dbrda, env.chem[,c(4,6,7)], perm = 999)
+
+#Calculate Explained Variation
+dbrda.explainvar1 <- round(doubs.dbrda$CCA$eig[1] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
+
+dbrda.explainvar2 <- round(doubs.dbrda$CCA$eig[2] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
+
+#Define plot parameters
+par(mar = c(5, 5, 4, 4) + 0.1)
+
+#Initiate plot
+plot(scores(doubs.dbrda, display = "wa"), xlim = c(-1.3, 1.1),
+     ylim = c(-1.1, 2.7), xlab = paste("dbRDA 1 (", dbrda.explainvar1, "%)", 
+                                       sep = ""), ylab = paste("dbRDA 2 (", dbrda.explainvar2, "%)", sep = ""),
+     cex.axis = 1.2, axes = FALSE)
 
 
+# Add axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
 
+#Add points and labels 
+points(scores(doubs.dbrda, display = "wa"),
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(doubs.dbrda, display = "wa"),
+     labels = row.names(scores(doubs.dbrda, display = "wa")))
 
+#Add environmental vectors 
+vectors <- scores(doubs.dbrda, display = "bp")
 
-
-
-
-
-
-
-
-
-
-
+#row.names(vectors) <- rownames(vectors)
+arrows(0, 0, vectors[,1], vectors[, 2],
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[, 2], pos = 3, 
+     labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis =1.2, las = 1, col = "red", lwd = 2.2, 
+     at = pretty(range(vectors[, 1])) * 2, labels = pretty(range(vectors[, 1])))
+axis(side = 4, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, 
+     at = pretty(range(vectors[, 2])) * 2, labels = pretty(range(vectors[, 2])))
 
 
 
@@ -141,7 +216,7 @@ In the R code chunk below, do the following:
 
 ***Question 3***: Based on the constrained ordination, what are the environmental variables (or groups of correlated variables) that seem to be contributing to variation in fish community structure?
 
-> ***Answer 3***: 
+> ***Answer 3***: The environmental variables that seem to be contributing to variation in fish community structure are nitrogen, oxygen, and bdo. 
 
 ### iii. Variation Partitioning
 In the code chunk below,   
@@ -154,8 +229,60 @@ In the code chunk below,
 6. Plot the variation partitioning output to visualize it.  
 ```{r}
 
+#Remember, our environmental model uses oxy, bdo, and nit has R2 of 0.53
+doubs.dbrda$anova
 
+#Let's create a matrix model for our environmental data
+env.mod <- model.matrix(~ oxy + bdo + nit, as.data.frame(env.chem))[,-1]
 
+#First, we will weight each site by its relative abundance
+rs <- rowSums(fish)/sum(fish)
+
+#Next, we will perform PCNM
+doubs.pcnmw <- pcnm(dist(doubs$xy[-8,]), w = rs, dist.ret = T)
+
+#PCNM can return negative eigenvalues, but only the eigen vectors associated with the positive eigenvalue are meaningful
+doubs.pcnmw$values > 0
+
+doubs.space <- as.data.frame(scores(doubs.pcnmw))
+doubs.pcnm.mod0 <- dbrda(fish.db ~ 1, doubs.space)
+doubs.pcnm.mod1 <- dbrda(fish.db ~ ., doubs.space)
+step.pcnm <- ordiR2step(doubs.pcnm.mod0, doubs.pcnm.mod1, perm.max = 200)
+
+#Because this is another dbRDA, we could visualize the biplot
+#showing how each vector explains variation across sites
+plot(step.pcnm)
+
+#The object 'step.pcnm' now contains the selected model.
+step.pcnm$anova
+
+#We can now construct a spatial model using only the selected PCNM axes.
+space.mod <- model.matrix(~ PCNM2 + PCNM3 + PCNM5 + PCNM1 + 
+                            PCNM13 + PCNM16 + PCNM6, doubs.space)[,-1]
+
+#First conduct constrained ordinations
+doubs.total.env <- dbrda(fish.db ~ env.mod)
+doubs.total.space <- dbrda(fish.db ~ space.mod)
+
+#Next construct partial constrained ordinations
+doubs.env.cond.space <- dbrda(fish.db ~ env.mod + Condition(space.mod))
+doubs.space.cond.env <- dbrda(fish.db ~ space.mod + Condition(env.mod))
+
+#Next test for significance of the dbRDA fractions.
+permutest(doubs.env.cond.space, permutations = 999)
+permutest(doubs.space.cond.env, permutations = 999)
+permutest(doubs.total.env, permutations = 999)
+permutest(doubs.total.space, permutations = 999)
+
+#Using the built-in varpart() function
+doubs.varpart <- varpart(fish.db, env.mod, space.mod)
+doubs.varpart
+
+par(mar = c(2, 2, 2, 2))
+plot(doubs.varpart)
+text(1, 0.25, "Space")
+text(0, 0.25, "Env")
+mtext("Variation Partioning of\nDoubs Fish Diversity", side = 3, line = -3)
 
 
 
@@ -164,7 +291,7 @@ In the code chunk below,
 
 ***Question 4***: Interpret the variation partitioning results.   
 
-> ***Answer 4***: 
+> ***Answer 4***: 24% of the variation is explained by space alone, 13% of variation is explained by environment alone, 37% of the variation is explained by space and environment together. 
 
 ## SYNTHESIS
 
@@ -172,3 +299,121 @@ Load the dataset from that you and your partner are using for the team project.
 Use one of the hypothesis-testing tools introduced in the beta diversity module. 
 Interpret the findings of your data with respect to principles of biodiversity. 
 
+```{r}
+# Load necessary libraries
+library(vegan)
+library(tibble)
+library(lattice)
+library(readxl)
+library(dplyr)
+library(tidyr)
+
+
+#Trees
+tree <-read.csv("https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/d5b1465aaa135077652b5f5f69fd568d4d47b496/TREE.csv")
+tree.species.df <-data.frame(Plot_ID = c(tree$PLOT),
+                             SPCD =c(tree$SPCD))
+#str(tree.species.df)
+as.numeric()
+
+
+
+
+
+
+#Myco
+url <- "https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/main/MycoType_ref2.xlsx"
+# Create a temporary file to store the download
+temp_file <- tempfile(fileext = ".xlsx")
+# Download the file
+download.file(url, temp_file, mode = "wb")
+# Read the Excel file
+myco <- read_excel(temp_file)
+myco<- myco[,-c(3:7)]
+
+
+#invasive
+url <- "https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/main/INVASIVE.xlsx"
+# Create a temporary file to store the download
+temp_file2 <- tempfile(fileext = ".xlsx")
+# Download the file
+download.file(url, temp_file2, mode = "wb")
+# Read the Excel file
+invasive <- read_excel(temp_file2)
+invasive.df <-as.data.frame(invasive$PLOT) 
+
+
+
+#References
+
+#Plot ID code
+url <- "https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/main/PLOT.xlsx"
+# Create a temporary file to store the download
+temp_file3 <- tempfile(fileext = ".xlsx")
+# Download the file
+download.file(url, temp_file3, mode = "wb")
+# Read the Excel file
+plotID.master <- read_excel(temp_file3)
+
+
+#Species ID
+# GitHub raw file URL
+url <- "https://raw.githubusercontent.com/anna-l-2/QB_biodiversity_project_EH/main/REF_SPECIES.xlsx"
+# Create a temporary file to store the download
+temp_file4 <- tempfile(fileext = ".xlsx")
+# Download the file
+download.file(url, temp_file4, mode = "wb")
+# Read the Excel file
+speciesID.master <- read_excel(temp_file4)
+
+
+
+
+untree.species <- unique(tree.species.df$SPCD)
+unmyco.species <-unique(myco$SPCD)
+tree.species.df <- tree.species.df %>%
+  filter(!SPCD %in% c(999, 998)) 
+
+
+
+#add myco type
+tree.species.df$PlotStatus <- NA
+
+
+# Loop through rows of tree.species.df
+for (i in seq_len(nrow(tree.species.df))) {  
+  if (tree.species.df$Plot_ID[i] %in% invasive$PLOT) {  
+    tree.species.df$PlotStatus[i] <- "invasive"  
+  } else {  
+    tree.species.df$PlotStatus[i] <- "non-invasive"  
+  }
+}
+#Site by Species
+tree.species.df.1 <-data.frame(Plot_ID = c(tree$PLOT),
+                               Species_ID =c(tree$SPCD))
+
+
+
+tree.ss.df <- as.data.frame.matrix(table(tree.species.df.1$Plot_ID, tree.species.df.1$Species_ID))
+tree.ss.df <- rownames_to_column(tree.ss.df, var = "Plot_ID")
+#print(tree.ss.df)
+
+tree.species.only.df <- tree.ss.df[, 2:ncol(tree.ss.df)]
+
+
+#Create Factors vector
+
+factor <- factor(tree.species.df$PlotStatus)
+
+length(factor)
+nrow(tree.species.only.df)
+
+factor_trimmed <- factor[1:nrow(tree.species.only.df)]
+
+#adonis2(tree.species.only.df ~ factor_trimmed, method = "bray", permutations = 999)
+
+
+
+
+
+```
