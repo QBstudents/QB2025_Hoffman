@@ -1,6 +1,6 @@
 ---
 title: '8\. Worksheet: Phylogenetic Diversity - Traits'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Elaine Hoffman; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -43,6 +43,37 @@ In the R code chunk below, provide the code to:
 4. load all of the required R packages (be sure to install if needed).  
 
 ```{r}
+rm(list = ls())
+getwd()
+#setwd("cloud/project/Week6-Phylotraits")
+
+package.list <- c("ape", "seqinr", "phylobase", "adephylo", "geiger", "picante", "stats", "RColorBrewer", "caper", "phylolm", "pmc", "ggplot2", "tidyr", "dplyr", "phangorn", "pander", "phytools", "vegan", "cluster", "dendextend", "phylogram", "bios2mds", "pak", "formatR")
+
+for (package in package.list){
+  if(!require(package, character.only = TRUE, quietly = TRUE)){
+    install.packages(package)
+    library(package, character.only = TRUE)
+  }
+}
+
+##comment out this after it runs once
+#pak::pkg_install('msa')
+
+library(msa)
+#Import and view unaligned sequences {Biostrings}
+seqs <- readDNAStringSet("data/p.isolates.fasta", format = 'fasta')
+
+#view sequences
+seqs
+
+#Align sequences using default MUSCLE parameters {msa}
+read.aln <- msaMuscle(seqs)
+
+#Save and export the alignment to use later
+save.aln <- msaConvert(read.aln, type = "bios2mds::align")
+export.fasta(save.aln, "./data/p.isolates.afa")
+
+
 
 
 ```
@@ -58,7 +89,7 @@ In this exercise, we will take a phylogenetic approach to mapping phosphorus res
 ***Question 1***: Using your favorite text editor, compare the `p.isolates.fasta` file and the `p.isolates.afa` file. 
 Describe the differences that you observe between the two files. 
 
-> ***Answer 1***: 
+> ***Answer 1***: The fasta file is less overwhelming to look at because the sequences are just in single paragraphs one after the other with the sample label at the beginning of the paragraph. The afa file is a little more overwhelming to look at because it has a ton of dashed lines separating portions of sequences and it is much harder to tell where one sample ends and the next begins. 
 
 In the R code chunk below, do the following:
 1. read your alignment file,
@@ -67,13 +98,17 @@ In the R code chunk below, do the following:
 4. plot the alignment using a grid to visualize rows of sequences.
 
 ```{r}
-package.list <- c('ape', 'seqinr', 'phylobase', 'adephylo', 'geiger', 'picante', 'stats', 'RColorBrewer', 'caper', 'phylolm', 'pmc', 'ggplot2', 'tidyr', 'dplyr', 'phangorn', 'pander') 
-for (package in package.list) {
-  if (!require(package, character.only=TRUE, quietly=TRUE)) {
-    install.packages(package)
-    library(package, character.only=TRUE)
-  }
-}
+
+#Convert alignment to DNAbin Object {ape}
+p.DNAbin <- as.DNAbin(read.aln)
+
+#Identify Base Pair Region of 16S rRNA Gene to Visualize 
+window <- p.DNAbin [ , 500:650]
+
+#Command to Visualize Sequence Alignment {ape}
+image.DNAbin(window, cex.lab = 0.50)
+
+
 
 ```
 
@@ -83,8 +118,8 @@ Move along the alignment by changing the values in the `window` object.
 a. Approximately how long are our sequence reads?  
 b. What regions do you think would are appropriate for phylogenetic inference and why?  
 
-> ***Answer 2a***:   
-> ***Answer 2b***:  
+> ***Answer 2a***:  The sequence reads appear to range from roughly 600-900 bps.  
+> ***Answer 2b***:  I think the region of roughly 100-650 would be good for analysis because all of the sequences are at least that long so everything can be compared. Within that range there are a few patches of missing values that should be avoided. The range of 500-650 is an example of a good region for phylogenetic inference because there are no missing sections in the sequences and it shows relatively good alignment. 
 
 ## 4) MAKING A PHYLOGENETIC TREE
 
@@ -101,13 +136,34 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+#Create Distance Matrix with "raw" Model {ape}
+seq.dist.raw <- dist.dna(p.DNAbin, model = "raw", pairwise.deletion = FALSE)
+
+#Neighbor Joining Algorithm to Construct Tree, a "phylo"
+#Object {ape}
+nj.tree <- bionj(seq.dist.raw)
+
+#Identify Outgroup Sequence
+outgroup <- match("Methanosarcina", nj.tree$tip.label)
+
+#Root the Tree {ape}
+nj.rooted <- root(nj.tree, outgroup, resolve.root = TRUE)
+
+#Plot the Rooted Tree {ape}
+par(mar = c(1, 1, 2, 1) + 0.1)
+plot.phylo(nj.rooted, main = "Neighbor Joining Tree", "phylogram", 
+           use.edge.length = FALSE, direction = "right", cex = 0.6,
+           label.offset = 1)
+add.scale.bar(cex = 0.7)
+
+
 
 ```
 
 ***Question 3***: What are the advantages and disadvantages of making a neighbor joining tree?   
 
 
-> ***Answer 3***:  
+> ***Answer 3***:  An advantage of making a neighbor joining tree is it is simple and wasy to calculate and it often serves as a "guide tree" that can be used to integrate more sophisticated methods. The disadvantage of neighbor joining trees is that they use raw estimates of phylogenetic distance and therefore, cannot account for the occurance of multiple substitutions or the differences in likelihood of a substitution between different bases. 
  
 
 
@@ -121,6 +177,42 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+#Create distance matrix with "F84" model {ape}
+seq.dist.F84 <- dist.dna(p.DNAbin, model = "F84", pairwise.deletion = FALSE)
+
+#Plot Distances from Different DNA Substitution Models
+par(mar = c(5, 5, 2, 1) + 0.1)
+plot(seq.dist.raw, seq.dist.F84,
+     pch = 20, col = "red", las = 1, asp = 1, xlim = c(0, 0.7),
+     ylim = c(0, 0.7), xlab = "Raw Distance", ylab = "F84 Distance")
+abline(b = 1, a = 0, lty = 2)
+text(0.65, 0.6, "1:1")
+
+#Make Neighbor Joining Trees Using Different DNA Substitution Models {ape}
+raw.tree <- bionj(seq.dist.raw)
+F84.tree <- bionj(seq.dist.F84)
+
+#Define Outgroups
+raw.outgroup <- match("Methanosarcina", raw.tree$tip.label)
+F84.outgroup <- match("Methanosarcina", F84.tree$tip.label)
+
+#Root the Trees {ape}
+raw.rooted <- root(raw.tree, raw.outgroup, resolve.root = TRUE)
+F84.rooted <- root(F84.tree, F84.outgroup, resolve.root = TRUE)
+
+#Make Cophylogenetic Plot {ape}
+layout(matrix(c(1, 2), 1, 2), width = c(1, 1))
+par(mar = c(1, 1, 2, 0))
+plot.phylo(raw.rooted, type = "phylogram", direction = "right",
+           show.tip.label = TRUE, use.edge.length = FALSE, adj = 0.5,
+           cex = 0.6, label.offset = 2, main = "Raw")
+par(mar = c(1, 0, 2, 1))
+plot.phylo(F84.rooted, type = "phylogram", direction = "left", 
+           show.tip.label = TRUE, use.edge.length = FALSE, adj = 0.5,
+           cex = 0.6, label.offset = 2, main = "F84")
+
+
+
 
 ```
 
@@ -131,6 +223,41 @@ In the R code chunk below, do the following:
 2. Plot bootstrap support values onto the tree
 
 ```{r}
+#Requires alignment to be read in with as phyDat object
+phyDat.aln <- msaConvert(read.aln, type = "phangorn::phyDat")
+
+#Make the NJ tree for the maximum likelihood method
+#{Phangorn} requires a specific attribute (attr) class.
+#So we need to remake our trees with the following code:
+aln.dist <- dist.ml(phyDat.aln)
+aln.NJ <- NJ(aln.dist)
+
+fit <- pml(tree = aln.NJ, data = phyDat.aln)
+
+
+#Fit tree using a JC69 substitution model
+fitJC <- optim.pml(fit, model = "GTR", optInv = TRUE, optGamma = TRUE,
+                   rearrangement = "NNI", control = pml.control(trace = 0))
+
+#Fit tree using a GTR model with gamma distributed rates.
+fitGTR <- optim.pml(fit, model = "GTR", optInv = TRUE, optGamma = TRUE,
+                    rearrangement = "NNI", control = pml.control(trace = 0))
+
+#Perform model selection with either an ANOVA test or with AIC
+anova(fitJC, fitGTR)
+AIC(fitJC)
+AIC(fitGTR)
+
+
+ml.bootstrap <- read.tree("./data/ml_tree/RAxML_bipartitions.T1")
+par(mar = c(1, 1, 2, 1) + 0.1)
+plot.phylo(ml.bootstrap, type = "phylogram", direction = "right",
+           show.tip.label = TRUE, use.edge.length = FALSE, cex = 0.6,
+           label.offset = 1, main = "Maximum Likelihood with Support Values")
+add.scale.bar(cex = 0.7)
+nodelabels(ml.bootstrap$node.label, font = 2, bg = "white", frame = "r",
+           cex = 0.5)
+
 
 
 ```
@@ -148,11 +275,11 @@ d) Which branches have very low support?
 
 e) Should we trust these branches? Why or why not?
 
-> ***Answer 4a***:   
-> ***Answer 4b***:   
-> ***Answer 4c***:   
-> ***Answer 4d***:   
-> ***Answer 4e***:   
+> ***Answer 4a***:  The neighbor joining tree breaks up into a larger number of groupings more quickly than the maximum likelihood tree. This is because the neighbor joining tree is only using raw estimates of phylogenetic distance which means it is not taking into consideration a number of important factors such as multiple substitutions and variations in probability of base substitutions from one base to another.  
+> ***Answer 4b***:  We bootstrap our trees because we do not know what the "real" tree looks like so we need to find a way to evaluate if a tree we have generated can be trusted. By bootstrapping we can get an idea of whether a tree is reliable based on its similarity to the others that have been generated.  
+> ***Answer 4c***:  Bootstrap values tell you how similar that branch is to the corresponding ones in the other versions of the tree that were generated by bootstrapping. The values basically tell you how similar each branch is to the others that have been generated.  
+> ***Answer 4d***: A branch has low support when it does not match many of the corresponding branches in the other trees that were generated by bootstrapping the same dataset.   
+> ***Answer 4e***:  We should not trust these branches because they are an outlier in the dataset and are therefore unlikely to represent the reality.  
 
 
 ## 5) INTEGRATING TRAITS AND PHYLOGENY
@@ -164,6 +291,12 @@ In the R code chunk below, do the following:
 2. standardize the data for each strain by the sum of growth rates.
 
 ```{r}
+#Import Growth Rate Data
+p.growth <- read.table("./data/p.isolates.raw.growth.txt", sep = "\t",
+                       header = TRUE, row.names = 1)
+
+#Standardize Growth Rates Across Strains
+p.growth.std <- p.growth / (apply(p.growth, 1, sum))
 
 
 ```
@@ -176,6 +309,24 @@ In the R code chunk below, do the following:
 3. use this function to calculate *nb* for each isolate.
 
 ```{r}
+#Calculate Max Growth Rate
+umax <- (apply(p.growth, 1, max))
+
+levins <- function(p_xi = ""){
+  p = 0 
+  for (i in p_xi){
+    p = p + i^2
+  }
+  nb = 1 / (length(p_xi) * p)
+  return(nb)
+}
+
+
+#Calculate Niche Breadth for Each Isolate
+nb <- as.matrix(levins(p.growth.std))
+
+#Add Row Names to Niche Breadth Matrix
+nb <- setNames(as.vector(nb), as.matrix(row.names(p.growth)))
 
 
 ```  
@@ -188,6 +339,19 @@ In the R code chunk below, do the following:
 3. remove the outgroup branch.
 
 ```{r}
+seq.dist.K80 <- dist.dna(p.DNAbin, model = "K80", pairwise.deletion = FALSE)
+
+#Generate Neighbor Joining Tree Using K80 DNA Model {ape}
+nj.tree <- bionj(seq.dist.K80)
+
+#Define the Outgroup
+outgroup <- match("Methanosarcina", nj.tree$tip.label)
+
+#Create a Rooted Tree {ape}
+nj.rooted <- root(nj.tree, outgroup, resolve.root = TRUE)
+
+#Keep Rooted but Drop Outgroup Branch
+nj.rooted <- drop.tip(nj.rooted, "Methanosarcina")
 
 
 ```
@@ -200,6 +364,31 @@ In the R code chunk below, do the following:
 
 
 ```{r}
+#Define Color Pallette 
+mypalette <- colorRampPalette(brewer.pal(9, "Spectral"))
+
+#First, correct for zero branch lengths on our tree
+nj.plot <- nj.rooted
+nj.plot$edge.length <- nj.plot$edge.length + 10^-1
+
+#Map Phosphorus Traits {adephylo}
+par(mar = c(1, 1, 1, 1) + 0.1)
+x <- phylo4d(nj.plot, p.growth.std)
+table.phylo4d(x, treetype = "phylo", symbol = "colors", show.node = TRUE,
+              cex.label = 0.5, scale = FALSE, use.edge.length = FALSE,
+              edge.color = "black", edge.width = 2, box = FALSE,
+              col = mypalette(25), pch = 15, cex.symbol = 1.25,
+              ratio.tree = 0.5, cex.legend = 1.5, center = FALSE)
+
+#Niche Breadth
+par(mar = c(1, 5, 1, 5) + 0.1)
+x.nb <- phylo4d(nj.plot, nb)
+table.phylo4d(x.nb, treetype = "phylo", symbol = "colors", show.node = TRUE,
+              cex.label = 0.5, scale = FALSE, use.edge.length = FALSE, 
+              edge.color = "black", edge.width = 2, box = FALSE, col = mypalette(25),
+              pch = 15, cex.symbol = 1.25, var.label = ("NB"), ratio.tree = 0.90,
+              cex.legend = 1.5, center = FALSE)
+
 
 
 ```
@@ -210,8 +399,8 @@ a) Develop a hypothesis that would support a generalist-specialist trade-off.
 
 b) What kind of patterns would you expect to see from growth rate and niche breadth values that would support this hypothesis?
 
-> ***Answer 5a***:   
-> ***Answer 5b***:   
+> ***Answer 5a***: There is a tradeoff between generalists and specialists in regards to growth rate and niche breadth values. Specialists trade a wide niche breadth for a high growth rate in ideal conditions and generalists trade high growth rate for a wide niche breadth. 
+> ***Answer 5b***:   A specialist would have a high growth rate but a narrow niche breadth and a generalist would have a moderate to low growth rate and a wide niche breadth. 
 
 ## 6) HYPOTHESIS TESTING
 
@@ -223,7 +412,15 @@ In the R code chunk below, do the following:
 3. label and customize the trees as desired.
 
 ```{r}
-
+library(geiger)
+nj.lambda.5 <- geiger:::rescale.phylo(nj.rooted, model = "lambda", lambda = 0.5)
+nj.lambda.0 <- geiger:::rescale.phylo(nj.rooted, model = "lambda", lambda = 0)
+layout(matrix(c(1,2,3), 1,3),
+       width = c(1, 1, 1))
+par(mar = c(1, 0.5, 2, 0.5) + 0.1)
+plot(nj.rooted, main = "lambda = 1", cex = 0.7, adj = 0.5)
+plot(nj.lambda.5, main = "lambda = 0.5", cex = 0.7, adj = 0.5)
+plot(nj.lambda.0, main = "lambda = 0", cex = 0.7, adj = 0.5)
 
 ```
 
@@ -231,7 +428,13 @@ In the R code chunk below, do the following:
 1. use the `fitContinuous()` function to compare your original tree to the transformed trees.
 
 ```{r}
+#Generate test statistics for comparing phylogenetic signal {gieger}
+fitContinuous(nj.rooted, nb, model = "lambda")
+fitContinuous(nj.lambda.0, nb, model = "lambda")
 
+#Compare Pagel's lambda score with likelihood ratio test
+#lambda = 0, no phylogenetic signal
+phylosig(nj.rooted, nb, method = "lambda", test = TRUE)
 
 ```
 
@@ -241,9 +444,9 @@ b. Compare the Akaike information criterion (AIC) scores of the two models.
 Which model would you choose based off of AIC score (remember the criteria that the difference in AIC values has to be at least 2)?
 c. Does this result suggest that there's phylogenetic signal?
 
-> ***Answer 6a***:  
-> ***Answer 6b***:  
-> ***Answer 6c***:  
+> ***Answer 6a***:  The lambda value for the untransformed tree is 0.006923 and the lambda value for the transformed tree is 0.000000. There is not a large difference between the two values. 
+> ***Answer 6b***: The AIC score for the untransformed tree is -36.9989 and the AIC score for the transformed tree is -36.9971. These are also highly similar to each other.  I would not be able to choose between either model because their values are so similar. 
+> ***Answer 6c***:  This does not suggest that there is a strong phylogenetic signal. 
 
 
 
@@ -256,6 +459,42 @@ In the R code chunk below, do the following:
 2. Fit a phylogenetic regression to the trait dataset, taking into account the bacterial phylogeny
 
 ```{r}
+#Using the niche breadth data, create a column that indicates the lake origin of each strain
+nb.lake <- as.data.frame(as.matrix(nb))
+nb.lake$lake <- rep('A')
+
+for(i in 1:nrow(nb.lake)) {
+  ifelse(grepl("WG", row.names(nb.lake)[i]), nb.lake[i, 2] <- "WG",
+         nb.lake[i, 2] <- "LL")
+}
+
+#Add a meaningful column name to the niche breadth values
+colnames(nb.lake)[1] <- "NB"
+
+#Calculate the max growth rate
+umax <- as.matrix((apply(p.growth, 1, max)))
+nb.lake <- cbind(nb.lake, umax)
+
+#Plot maximum growth rate by niche breadth 
+ggplot(data = nb.lake, aes(x = NB, y = log10(umax), color = lake)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  xlab("Niche Breadth") +
+  ylab(expression(Log[10] ~ "(Maximum growth rate)"))
+
+
+#Simple linear regression
+fit.lm <- lm(log10(umax) ~ NB * lake, data = nb.lake)
+summary(fit.lm)
+
+AIC(fit.lm)
+
+#Run a phylogeny-corrected regression with no bootstrap repliocates
+fit.plm <- phylolm(log10(umax) ~ NB * lake, data = nb.lake, nj.rooted,
+                   model = "lambda", boot = 0)
+summary(fit.plm)
+
+
 
 
 ```
@@ -267,10 +506,10 @@ c. Interpret the slope and fit of each model.
 Did accounting for shared evolutionary history improve or worsen the fit?
 d. Try to come up with a scenario where the relationship between two variables would completely disappear when the underlying phylogeny is accounted for.
 
-> ***Answer 7a***:  
-> ***Answer 7b***:  
-> ***Answer 7c***:  
-> ***Answer 7d***:  
+> ***Answer 7a***:  We need to correct for shared evolutionary history because it is possible that we are detecting a relationship between two variables that is actually present because of shared phylogeny and not a correlation between the actual variables. 
+> ***Answer 7b***:  A standard linear regression considers residual errors to be independent and identically distributed variables with a normal distribution. A phylogenetic regression corrects for this by describing residual errors with a covariance matrix that accounts for branch lengths. 
+> ***Answer 7c***:  Neither of the regressions showed NB as having a significant impact on the regression based on the high p values. LakeWb had a significant impact on both of the regressions with p-values below 0.05 and slopes between ~1.4-1.85. The combined effect of NB and LakeWB had a significant negative impact for both regressions with p-values below 0.05 and slopes between ~(-1.9)-(-2.3). 
+> ***Answer 7d***: You could find a relationship between mycorrhizal type and photosynthetic rate, but if your system has mainly pine trees as the ECM species and broadleaf species for the AM species, then as soon as you controlled for phylogeny it would likely disappear because leaf shape is likely controling photosynthetic rate to a greater degree than mycorhizal association.   
 
 
 ## 7) SYNTHESIS
@@ -302,8 +541,42 @@ If not, why?
 Is there anything you could do differently that would improve your tree, especially with regard to future analyses done by your team?
 
 ```{r}
+# Load necessary libraries
+library(ape)
+library(phangorn)
+library(Biostrings)
+library(msa)
 
+# Read DNA sequences
+Tree_seqs <- readDNAStringSet("data/Tree_fasta2.txt", format = 'fasta')
 
+# Perform multiple sequence alignment (MSA) using MUSCLE
+Tree_read.aln <- msaMuscle(Tree_seqs)
+
+# Convert MSA to DNAbin format
+Tree.p.DNAbin <- as.DNAbin(Tree_read.aln)
+
+# Compute pairwise genetic distances using the F84 model
+Tree.seq.dist.F84 <- dist.dna(Tree.p.DNAbin, model = "F84", pairwise.deletion = FALSE)
+
+# Construct a Neighbor-Joining (NJ) tree
+Tree.nj <- nj(Tree.seq.dist.F84)
+
+# Specify the outgroup (Make sure the name exactly matches the sequence identifier in the alignment)
+outgroup_name <- "Matteuccia_struthiopteris"
+
+# Root the tree using the outgroup
+if (outgroup_name %in% Tree.nj$tip.label) {
+    Tree.rooted <- root(Tree.nj, outgroup = outgroup_name, resolve.root = TRUE)
+} else {
+    stop("Outgroup name not found in the tree! Check sequence labels.")
+}
+
+# Plot the rooted phylogenetic tree
+plot(Tree.rooted, main = "Rooted Phylogenetic Tree (F84 Model)", cex = 0.8)
+
+#The tree does seem to align with the expectations for the relationships between these species as far as I can tell because the genuses were kept together. I am somewhat surprised by the distribution of the AM and ECM species due to how mixed together they are, but I believe this could be correct due to the extreme diversity within ECM fungal species. 
+#In the future I would include more species and I would make a maximum likelihood phylogenetic tree with support values to try and represent the relationships between the species with greater accuracy. 
 
 
 ```
